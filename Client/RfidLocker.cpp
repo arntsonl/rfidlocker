@@ -3,6 +3,18 @@
 
 #include "stdafx.h"
 #include "RfidLocker.h"
+#include <CommCtrl.h>
+
+#pragma comment(linker, \
+	"\"/manifestdependency:type='Win32' "\
+	"name='Microsoft.Windows.Common-Controls' "\
+	"version='6.0.0.0' "\
+	"processorArchitecture='*' "\
+	"publicKeyToken='6595b64144ccf1df' "\
+	"language='*'\"")
+
+#pragma comment(lib, "ComCtl32.lib")
+
 
 #define MAX_LOADSTRING 100
 
@@ -13,10 +25,8 @@ WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
 NOTIFYICONDATA niData;
 
 // Forward declarations of functions included in this code module:
-ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
-LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
-INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
+INT_PTR CALLBACK    DialogProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    ReadTag(HWND, UINT, WPARAM, LPARAM);
 ULONGLONG			GetDllVersion(LPCTSTR lpszDllName);
 void				ShowContextMenu(HWND, DWORD, DWORD);
@@ -29,12 +39,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
-    // TODO: Place code here.
-
-    // Initialize global strings
-    LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
-    LoadStringW(hInstance, IDC_RFIDLOCKER, szWindowClass, MAX_LOADSTRING);
-    MyRegisterClass(hInstance);
+	// Ensure that the common control DLL is loaded, and then create 
+	// the header control. 
+	INITCOMMONCONTROLSEX icex;  //declare an INITCOMMONCONTROLSEX Structure
+	icex.dwSize = sizeof(INITCOMMONCONTROLSEX);
+	icex.dwICC = ICC_LISTVIEW_CLASSES;   //set dwICC member to ICC_LISTVIEW_CLASSES    
+	// this loads list-view and header control classes.
+	InitCommonControlsEx(&icex);
 
     // Perform application initialization:
     if (!InitInstance (hInstance, nCmdShow))
@@ -57,34 +68,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     }
 
     return (int) msg.wParam;
-}
-
-
-
-//
-//  FUNCTION: MyRegisterClass()
-//
-//  PURPOSE: Registers the window class.
-//
-ATOM MyRegisterClass(HINSTANCE hInstance)
-{
-    WNDCLASSEXW wcex;
-
-    wcex.cbSize = sizeof(WNDCLASSEX);
-
-    wcex.style          = CS_HREDRAW | CS_VREDRAW;
-    wcex.lpfnWndProc    = WndProc;
-    wcex.cbClsExtra     = 0;
-    wcex.cbWndExtra     = 0;
-    wcex.hInstance      = hInstance;
-    wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_RFIDLOCKER));
-    wcex.hCursor        = LoadCursor(nullptr, IDC_ARROW);
-    wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
-    wcex.lpszMenuName   = MAKEINTRESOURCEW(IDC_RFIDLOCKER);
-    wcex.lpszClassName  = szWindowClass;
-    wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
-
-    return RegisterClassExW(&wcex);
 }
 
 VOID AddTrayIcon(HWND hWnd)
@@ -157,107 +140,73 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
    hInst = hInstance; // Store instance handle in our global variable
 
-   HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+   HWND hDlg = CreateDialogParam(hInst, MAKEINTRESOURCE(IDD_MAIN), 0, DialogProc, 0);
 
-   if (!hWnd)
+   //HWND hWnd = CreateWindowEx(NULL, szWindowClass, szTitle, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
+   //	CW_USEDEFAULT, CW_USEDEFAULT, 640, 480, nullptr, nullptr, hInstance, nullptr);
+
+   if (!hDlg)
    {
       return FALSE;
    }
 
    // If this is the first start, show the window, otherwise hide on boot
-   
+ 
 
-   //ShowWindow(hWnd, nCmdShow);
-   ShowWindow(hWnd, SW_HIDE);
-   UpdateWindow(hWnd);
-   AddTrayIcon(hWnd);
+   //ShowWindow(hDlg, nCmdShow);
+   ShowWindow(hDlg, SW_HIDE);
+   UpdateWindow(hDlg);
+   AddTrayIcon(hDlg);
 
    return TRUE;
 }
 
-//
-//  FUNCTION: WndProc(HWND, UINT, WPARAM, LPARAM)
-//
-//  PURPOSE:  Processes messages for the main window.
-//
-//  WM_COMMAND  - process the application menu
-//  WM_PAINT    - Paint the main window
-//  WM_DESTROY  - post a quit message and return
-//
-//
-LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+// Message handler for about box.
+INT_PTR CALLBACK DialogProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    switch (message)
-    {
+	UNREFERENCED_PARAMETER(lParam);
+	switch (message)
+	{
 	case IDM_ICON_TRAY_MESSAGE:
 		switch (lParam)
 		{
 		case WM_LBUTTONDBLCLK:
-			ShowWindow(hWnd, SW_RESTORE);
+			ShowWindow(hDlg, SW_RESTORE);
+			BringWindowToTop(hDlg);
 			break;
 		case WM_RBUTTONDOWN:
 		case WM_CONTEXTMENU:
-			ShowContextMenu(hWnd, lParam, wParam);
+			ShowContextMenu(hDlg, lParam, wParam);
 		}
 		break;
-    case WM_COMMAND:
-        {
-            int wmId = LOWORD(wParam);
-            // Parse the menu selections:
-            switch (wmId)
-            {
-			case IDM_READ_NEW_TAG:
-				DialogBox(hInst, MAKEINTRESOURCE(IDD_READ_TAG), hWnd, ReadTag);
-				break;
-            case IDM_ABOUT:
-                DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
-                break;
-            case IDM_EXIT:
-                DestroyWindow(hWnd);
-                break;
-            default:
-                return DefWindowProc(hWnd, message, wParam, lParam);
-            }
-        }
-        break;
-    case WM_PAINT:
-        {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hWnd, &ps);
-            // TODO: Add any drawing code that uses hdc here...
-            EndPaint(hWnd, &ps);
-        }
-        break;
-    case WM_DESTROY:
-        PostQuitMessage(0);
-		niData.uFlags = 0;
-		Shell_NotifyIcon(NIM_DELETE, &niData);
-        break;
-    default:
-        return DefWindowProc(hWnd, message, wParam, lParam);
-    }
-    return 0;
-}
+	case WM_INITDIALOG:
+		return (INT_PTR)TRUE;
 
-// Message handler for about box.
-INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    UNREFERENCED_PARAMETER(lParam);
-    switch (message)
-    {
-    case WM_INITDIALOG:
-        return (INT_PTR)TRUE;
+	case WM_CLOSE: /* there are more things to go here, */
+		DestroyWindow(hDlg);
+		return TRUE; /* just continue reading on... */
 
-    case WM_COMMAND:
-        if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
-        {
-            EndDialog(hDlg, LOWORD(wParam));
-            return (INT_PTR)TRUE;
-        }
-        break;
-    }
-    return (INT_PTR)FALSE;
+	case WM_SIZE:
+		switch (wParam)
+		{
+		case SIZE_MINIMIZED:
+			ShowWindow(hDlg, SW_HIDE);
+		}
+		return TRUE;
+
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		return TRUE;
+
+	case WM_COMMAND:
+		if (LOWORD(wParam) == IDM_EXIT)
+		{
+			DestroyWindow(hDlg);
+			return TRUE; /* just continue reading on... */
+		}
+		break;
+	}
+	return (INT_PTR)FALSE;
 }
 
 // Message handler for reading tag.
