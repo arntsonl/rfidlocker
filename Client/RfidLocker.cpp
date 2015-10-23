@@ -17,6 +17,7 @@ ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
+INT_PTR CALLBACK    ReadTag(HWND, UINT, WPARAM, LPARAM);
 ULONGLONG			GetDllVersion(LPCTSTR lpszDllName);
 void				ShowContextMenu(HWND, DWORD, DWORD);
 
@@ -164,6 +165,9 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
       return FALSE;
    }
 
+   // If this is the first start, show the window, otherwise hide on boot
+   
+
    //ShowWindow(hWnd, nCmdShow);
    ShowWindow(hWnd, SW_HIDE);
    UpdateWindow(hWnd);
@@ -203,6 +207,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // Parse the menu selections:
             switch (wmId)
             {
+			case IDM_READ_NEW_TAG:
+				DialogBox(hInst, MAKEINTRESOURCE(IDD_READ_TAG), hWnd, ReadTag);
+				break;
             case IDM_ABOUT:
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
                 break;
@@ -251,6 +258,26 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     }
     return (INT_PTR)FALSE;
+}
+
+// Message handler for reading tag.
+INT_PTR CALLBACK ReadTag(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	UNREFERENCED_PARAMETER(lParam);
+	switch (message)
+	{
+	case WM_INITDIALOG:
+		return (INT_PTR)TRUE;
+
+	case WM_COMMAND:
+		if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
+		{
+			EndDialog(hDlg, LOWORD(wParam));
+			return (INT_PTR)TRUE;
+		}
+		break;
+	}
+	return (INT_PTR)FALSE;
 }
 
 void ShowContextMenu(HWND hWnd, DWORD lParam, DWORD wParam)

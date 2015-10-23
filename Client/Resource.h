@@ -15,6 +15,9 @@
 #define IDC_RFIDLOCKER			109
 #define IDM_ICON_TRAY_MESSAGE   110
 #define IDR_POPUP_MENU          111
+#define IDM_READ_NEW_TAG        112
+#define IDM_RESTART_SERVICE     113
+#define IDD_READ_TAG            114
 #define IDC_MYICON				2
 #ifndef IDC_STATIC
 #define IDC_STATIC				-1

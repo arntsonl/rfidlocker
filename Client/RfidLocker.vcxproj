@@ -147,11 +147,15 @@
   <ItemGroup>
     <ClInclude Include="Resource.h" />
     <ClInclude Include="RfidLocker.h" />
+    <ClInclude Include="RfidUtils.h" />
+    <ClInclude Include="SerialClass.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="RfidLocker.cpp" />
+    <ClCompile Include="RfidUtils.cpp" />
+    <ClCompile Include="SerialClass.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

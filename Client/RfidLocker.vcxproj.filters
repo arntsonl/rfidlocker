@@ -30,12 +30,24 @@
     <ClInclude Include="RfidLocker.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="RfidUtils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SerialClass.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="RfidLocker.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RfidUtils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SerialClass.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
