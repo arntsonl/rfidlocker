@@ -3,6 +3,7 @@
 
 #include "stdafx.h"
 #include "RfidLocker.h"
+#include "RfidUtils.h"
 #include <CommCtrl.h>
 
 #pragma comment(linker, \
@@ -30,6 +31,10 @@ INT_PTR CALLBACK    DialogProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    ReadTag(HWND, UINT, WPARAM, LPARAM);
 ULONGLONG			GetDllVersion(LPCTSTR lpszDllName);
 void				ShowContextMenu(HWND, DWORD, DWORD);
+DWORD WINAPI		CheckRfidThread(LPVOID);
+static int g_rfidReadMode = 0;
+static HWND g_readRfidHwnd;
+static HWND g_parentHwnd;
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -138,35 +143,79 @@ VOID AddTrayIcon(HWND hWnd)
 //
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
-   hInst = hInstance; // Store instance handle in our global variable
+	hInst = hInstance; // Store instance handle in our global variable
 
-   HWND hDlg = CreateDialogParam(hInst, MAKEINTRESOURCE(IDD_MAIN), 0, DialogProc, 0);
+	InitRfidLocker();
+	InitArduino();
 
-   //HWND hWnd = CreateWindowEx(NULL, szWindowClass, szTitle, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
-   //	CW_USEDEFAULT, CW_USEDEFAULT, 640, 480, nullptr, nullptr, hInstance, nullptr);
+	HWND hDlg = CreateDialogParam(hInst, MAKEINTRESOURCE(IDD_MAIN), 0, DialogProc, 0);
 
-   if (!hDlg)
-   {
-      return FALSE;
-   }
+	if (!hDlg)
+	{
+		return FALSE;
+	}
 
-   // If this is the first start, show the window, otherwise hide on boot
- 
+	// Fill in the COM ports
+	HWND comItem = GetDlgItem(hDlg, IDC_COM_SELECT);
+	SendMessage(comItem, CB_ADDSTRING, 0, (LPARAM)L"COM0");
+	SendMessage(comItem, CB_ADDSTRING, 0, (LPARAM)L"COM1");
+	SendMessage(comItem, CB_ADDSTRING, 0, (LPARAM)L"COM2");
+	SendMessage(comItem, CB_ADDSTRING, 0, (LPARAM)L"COM3");
+	SendMessage(comItem, CB_ADDSTRING, 0, (LPARAM)L"COM4");
+	SendMessage(comItem, CB_ADDSTRING, 0, (LPARAM)L"COM5");
+	SendMessage(comItem, CB_ADDSTRING, 0, (LPARAM)L"COM6");
+	SendMessage(comItem, CB_ADDSTRING, 0, (LPARAM)L"COM7");
+	SendMessage(comItem, CB_ADDSTRING, 0, (LPARAM)L"COM8");
+	SendMessage(comItem, CB_ADDSTRING, 0, (LPARAM)L"COM9");
+	SendMessage(comItem, CB_SETCURSEL, (WPARAM)g_rfidOptions.comNumber, 0);
 
-   //ShowWindow(hDlg, nCmdShow);
-   ShowWindow(hDlg, SW_HIDE);
-   UpdateWindow(hDlg);
-   AddTrayIcon(hDlg);
+	// Fill the read id
+	
+	HWND readHwnd = GetDlgItem(hDlg, IDC_READ_ID);
+	if (strcmp(g_rfidOptions.readTag, "") == 0)
+	{
+		SendMessage(readHwnd, WM_SETTEXT, 0, (LPARAM)L"NONE");
+	}
+	else
+	{
+		TCHAR buffer_t[2048];
+		mbstowcs(buffer_t, g_rfidOptions.readTag, 1024);
+		SendMessage(readHwnd, WM_SETTEXT, 0, (LPARAM)buffer_t);
+	}
 
-   return TRUE;
+	// Fill the frequency
+	HWND sliderHwnd = GetDlgItem(hDlg, IDC_FREQUENCY_SLIDER);
+	SendMessage(sliderHwnd, TBM_SETRANGE, (WPARAM)TRUE, (LPARAM)MAKELPARAM(1, 20));
+	SendMessage(sliderHwnd, TBM_SETPOS, (WPARAM)TRUE, (LPARAM)g_rfidOptions.frequency);
+
+	DWORD threadId;
+	CreateThread(NULL, 0, CheckRfidThread, NULL, 0, &threadId);
+
+	// If this is the first start, show the window, otherwise hide on boot
+	if (strcmp(g_rfidOptions.readTag, "") == 0)
+		ShowWindow(hDlg, nCmdShow);
+	else
+		ShowWindow(hDlg, SW_HIDE);
+	UpdateWindow(hDlg);
+	AddTrayIcon(hDlg);
+
+	return TRUE;
 }
 
 // Message handler for about box.
 INT_PTR CALLBACK DialogProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	UNREFERENCED_PARAMETER(lParam);
+	HWND tmpWnd;
+	int selNumber;
+
 	switch (message)
 	{
+	case WM_HSCROLL:
+		tmpWnd = GetDlgItem(hDlg, IDC_FREQUENCY_SLIDER);
+		selNumber = SendMessage(tmpWnd, TBM_GETPOS, 0, 0);
+		SetFrequency(selNumber);
+		break;
 	case IDM_ICON_TRAY_MESSAGE:
 		switch (lParam)
 		{
@@ -180,6 +229,7 @@ INT_PTR CALLBACK DialogProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPara
 		}
 		break;
 	case WM_INITDIALOG:
+		g_parentHwnd = hDlg;
 		return (INT_PTR)TRUE;
 
 	case WM_CLOSE: /* there are more things to go here, */
@@ -199,10 +249,28 @@ INT_PTR CALLBACK DialogProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPara
 		return TRUE;
 
 	case WM_COMMAND:
-		if (LOWORD(wParam) == IDM_EXIT)
+		switch (LOWORD(wParam))
 		{
+		case IDC_COM_SELECT:
+			switch (HIWORD(wParam))
+			{
+			case CBN_SELCHANGE:
+				tmpWnd = GetDlgItem(hDlg, IDC_COM_SELECT);
+				selNumber = SendMessage(tmpWnd, CB_GETCURSEL, 0, 0); //Global variable
+				ChangeCOMPort(selNumber);
+				break;
+			}
+			break;
+		case IDC_READ_NEW_TAG:
+			g_rfidReadMode = 1;
+			DialogBox(hInst, MAKEINTRESOURCE(IDD_READ_TAG), hDlg, (DLGPROC)ReadTag);
+			break;
+		case IDC_SAVE_BUTTON:
+			SaveRfidSettings();
+			break;
+		case IDM_EXIT:
 			DestroyWindow(hDlg);
-			return TRUE; /* just continue reading on... */
+			return TRUE;
 		}
 		break;
 	}
@@ -216,12 +284,14 @@ INT_PTR CALLBACK ReadTag(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	switch (message)
 	{
 	case WM_INITDIALOG:
+		g_readRfidHwnd = hDlg;
 		return (INT_PTR)TRUE;
 
 	case WM_COMMAND:
 		if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
 		{
 			EndDialog(hDlg, LOWORD(wParam));
+			g_rfidReadMode = 0;
 			return (INT_PTR)TRUE;
 		}
 		break;
@@ -264,3 +334,60 @@ ULONGLONG GetDllVersion(LPCTSTR lpszDllName)
 	return ullVersion;
 }
 #endif
+
+DWORD WINAPI CheckRfidThread(LPVOID lParam)
+{
+	char buffer[2048];
+	TCHAR buffer_t[2048];
+	HWND tmpHwnd;
+	while (1)
+	{
+		// Sleep our frequency
+		Sleep(g_rfidOptions.frequency*200);
+		
+		if (g_SP->IsConnected() == true)
+		{
+			if (g_rfidReadMode == 0)
+			{
+				g_SP->WriteData(ARDUINO_POLL, 1);
+				Sleep(100); // wait 100ms for a response
+				int bytesRead = g_SP->ReadData(buffer, 2048);
+				if (bytesRead > 0)
+				{
+					buffer[bytesRead] = 0;
+
+					// Check to see if we've disconnected
+					if (strcmp(buffer, "disconnected") == 0)
+					{
+						// Lock the machine!!
+						PROCESS_INFORMATION pi = { 0 };
+						STARTUPINFOA si = { 0 };
+						si.cb = sizeof(si);
+						char * szCmdline = "rundll32.exe user32.dll,LockWorkStation";
+						CreateProcessA(NULL, szCmdline, NULL, NULL, FALSE, NORMAL_PRIORITY_CLASS, NULL, NULL, &si, &pi);
+					}
+				}
+			}
+			else if (g_rfidReadMode == 1)
+			{
+				g_SP->WriteData(ARDUINO_UUID, 1);
+				Sleep(100); // wait 100ms for a response
+				int bytesRead = g_SP->ReadData(buffer, 2048);
+				if (bytesRead > 0)
+				{
+					buffer[bytesRead] = 0;
+
+					// Got a UUID!
+					ReadNewTag(buffer);
+					tmpHwnd = GetDlgItem(g_parentHwnd, IDC_READ_ID);
+					mbstowcs(buffer_t, buffer, 1024);
+					SendMessage(tmpHwnd, WM_SETTEXT, (WPARAM)0, (LPARAM)buffer_t);
+					g_rfidReadMode = 0;
+					EndDialog(g_readRfidHwnd, 0);
+				}
+			}
+		}
+	}
+	return 0;
+}
+
