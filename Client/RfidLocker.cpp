@@ -245,6 +245,7 @@ INT_PTR CALLBACK DialogProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPara
 		return TRUE;
 
 	case WM_DESTROY:
+		Shell_NotifyIcon(NIM_DELETE, &niData);
 		PostQuitMessage(0);
 		return TRUE;
 
@@ -343,21 +344,30 @@ DWORD WINAPI CheckRfidThread(LPVOID lParam)
 	while (1)
 	{
 		// Sleep our frequency
-		Sleep(g_rfidOptions.frequency*200);
+		Sleep(g_rfidOptions.frequency*10 + 1000);
 		
 		if (g_SP->IsConnected() == true)
 		{
 			if (g_rfidReadMode == 0)
 			{
-				g_SP->WriteData(ARDUINO_POLL, 1);
-				Sleep(100); // wait 100ms for a response
+				g_SP->WriteData(ARDUINO_POLL_TAG, 1);
+				Sleep(50);
 				int bytesRead = g_SP->ReadData(buffer, 2048);
 				if (bytesRead > 0)
 				{
 					buffer[bytesRead] = 0;
-
+					if (strcmp(buffer, "inactive") == 0)
+					{
+						tmpHwnd = GetDlgItem(g_parentHwnd, IDC_STATUS_TEXT);
+						SendMessage(tmpHwnd, WM_SETTEXT, (WPARAM)0, (LPARAM)L"Status: Inactive");
+					}
+					else if (strcmp(buffer, "connected") == 0)
+					{
+						tmpHwnd = GetDlgItem(g_parentHwnd, IDC_STATUS_TEXT);
+						SendMessage(tmpHwnd, WM_SETTEXT, (WPARAM)0, (LPARAM)L"Status: Active");
+					}
 					// Check to see if we've disconnected
-					if (strcmp(buffer, "disconnected") == 0)
+					else if (strcmp(buffer, "disconnected") == 0)
 					{
 						// Lock the machine!!
 						PROCESS_INFORMATION pi = { 0 };
@@ -370,8 +380,8 @@ DWORD WINAPI CheckRfidThread(LPVOID lParam)
 			}
 			else if (g_rfidReadMode == 1)
 			{
-				g_SP->WriteData(ARDUINO_UUID, 1);
-				Sleep(100); // wait 100ms for a response
+				g_SP->WriteData(ARDUINO_READ_TAG, 1);
+				Sleep(50);
 				int bytesRead = g_SP->ReadData(buffer, 2048);
 				if (bytesRead > 0)
 				{

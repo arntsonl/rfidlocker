@@ -36,6 +36,14 @@ void ChangeCOMPort(int com)
 	g_SP = new Serial(comPort);    // adjust as needed
 
 	g_rfidOptions.comNumber = com;
+
+	// Send Tag ID
+	if (g_SP->IsConnected() == true)
+	{
+		g_SP->WriteData(ARDUINO_SET_TAG, 1);
+		Sleep(50);
+		g_SP->WriteData(g_rfidOptions.readTag, strlen(g_rfidOptions.readTag));
+	}
 }
 
 void SetFrequency(int frequency)

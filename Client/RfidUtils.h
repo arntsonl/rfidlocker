@@ -4,8 +4,9 @@
 #include "SimpleIni.h"
 #include "SerialClass.h"
 
-#define ARDUINO_POLL "0"
-#define ARDUINO_UUID "1"
+#define ARDUINO_POLL_TAG "0"
+#define ARDUINO_READ_TAG "1"
+#define ARDUINO_SET_TAG "2"
 
 void InitRfidLocker();
 void InitArduino();

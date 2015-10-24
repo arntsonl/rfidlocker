@@ -1,11 +1,11 @@
 # define name of installer
-OutFile "RFIDLockerSetup.exe"
+OutFile "RFIDLockerSetup_x86.exe"
  
 # plugins
 !include UAC.nsh 
  
 # define installation directory
-InstallDir "$PROGRAMFILES64\RfidLocker"
+InstallDir "$PROGRAMFILES32\RfidLocker"
  
 # For removing Start Menu shortcut in Windows 7
 RequestExecutionLevel user
