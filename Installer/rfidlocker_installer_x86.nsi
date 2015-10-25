@@ -2,6 +2,7 @@
 OutFile "RFIDLockerSetup_x86.exe"
  
 # plugins
+!include nsProcess.nsh
 !include UAC.nsh 
  
 # define installation directory
@@ -35,6 +36,9 @@ Section
     CreateDirectory "$SMPROGRAMS\RFID Locker"
     CreateShortCut "$SMPROGRAMS\RFID Locker\RfidLocker.lnk" "$INSTDIR\RfidLocker.exe"
     CreateShortCut "$SMPROGRAMS\RFID Locker\Uninstall.lnk" "$INSTDIR\RfidUninstall.exe"
+    
+    # start the program
+    Exec "$INSTDIR\RfidLocker.exe"
 SectionEnd
  
 # uninstaller section start
@@ -45,9 +49,15 @@ Section "uninstall"
  
     DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "RFID Locker"
  
+    # if its running kill it
+    ${nsProcess::KillProcess} "RfidLocker.exe" $R0
+ 
     Delete "$INSTDIR\RfidUninstall.exe"
     Delete "$INSTDIR\RfidLocker.exe"
     RMDir $INSTDIR
+    
+    Delete "$APPDATA\RfidLocker\RfidLocker.ini"
+    RMDir "$APPDATA\RfidLocker"
     
     Delete "$SMPROGRAMS\RFID Locker\RFIDLocker.lnk"
     Delete "$SMPROGRAMS\RFID Locker\Uninstall.lnk"

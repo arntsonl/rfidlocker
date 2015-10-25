@@ -12,6 +12,7 @@
 #include <windows.h>
 #include <shellapi.h>
 #include <Shlwapi.h>
+#include <Shlobj.h>
 
 // C RunTime Header Files
 #include <stdlib.h>

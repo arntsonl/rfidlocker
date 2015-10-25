@@ -7,7 +7,12 @@ Serial * g_SP;
 
 void InitRfidLocker()
 {
-	g_ini.LoadFile("RfidLocker.ini");
+	TCHAR path[MAX_PATH];
+	SHGetSpecialFolderPath(0, path, CSIDL_APPDATA, FALSE);
+	wcscat(path, L"\\RfidLocker");
+	CreateDirectory(path, NULL);
+	wcscat(path, L"\\RfidLocker.ini");
+	g_ini.LoadFile(path);
 	const char * readTag = g_ini.GetValue("settings", "readtag", "");
 	strncpy(g_rfidOptions.readTag, readTag, 2048);
 	g_rfidOptions.comNumber = g_ini.GetLongValue("settings", "com", 0);
@@ -56,7 +61,10 @@ void SaveRfidSettings()
 	g_ini.SetValue("settings", "readtag", g_rfidOptions.readTag);
 	g_ini.SetLongValue("settings", "com", g_rfidOptions.comNumber);
 	g_ini.SetLongValue("settings", "frequency", g_rfidOptions.frequency);
-	g_ini.SaveFile("RfidLocker.ini");
+	TCHAR path[MAX_PATH];
+	SHGetSpecialFolderPath(0, path, CSIDL_APPDATA, FALSE);
+	wcscat(path, L"\\RfidLocker\\RfidLocker.ini");
+	g_ini.SaveFile(path);
 }
 
 void ReadNewTag(char * buffer)
