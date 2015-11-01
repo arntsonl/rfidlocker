@@ -8,6 +8,9 @@
 #define ARDUINO_READ_TAG "1"
 #define ARDUINO_SET_TAG "2"
 
+#define CARD_NOT_PRESENT "0"
+#define CARD_PRESENT "1"
+
 void InitRfidLocker();
 void InitArduino();
 void ChangeCOMPort(int);
@@ -15,6 +18,7 @@ void ReadNewTag(char *);
 void SetFrequency(int);
 void CheckCurrentTag();
 void SaveRfidSettings();
+char * GetTag();
 
 struct rfidOptions {
 	char readTag[2048];

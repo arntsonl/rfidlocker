@@ -263,7 +263,7 @@ INT_PTR CALLBACK DialogProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPara
 			}
 			break;
 		case IDC_READ_NEW_TAG:
-			g_rfidReadMode = 1;
+			g_rfidReadMode = 2;
 			DialogBox(hInst, MAKEINTRESOURCE(IDD_READ_TAG), hDlg, (DLGPROC)ReadTag);
 			break;
 		case IDC_SAVE_BUTTON:
@@ -292,7 +292,7 @@ INT_PTR CALLBACK ReadTag(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 		if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
 		{
 			EndDialog(hDlg, LOWORD(wParam));
-			g_rfidReadMode = 0;
+			g_rfidReadMode = 1;
 			return (INT_PTR)TRUE;
 		}
 		break;
@@ -348,7 +348,24 @@ DWORD WINAPI CheckRfidThread(LPVOID lParam)
 		
 		if (g_SP->IsConnected() == true)
 		{
-			if (g_rfidReadMode == 0)
+			char * tag = GetTag();
+			if (g_rfidReadMode == 0 && strlen(tag) > 0)
+			{
+				g_SP->WriteData(ARDUINO_SET_TAG, 1);
+				Sleep(50);
+				g_SP->WriteData(tag, strlen(tag));
+				Sleep(50);
+				int bytesRead = g_SP->ReadData(buffer, 2048);
+				if (bytesRead > 0)
+				{
+					buffer[bytesRead] = 0;
+					if (strcmp(buffer, "1") == 0)
+					{
+						g_rfidReadMode = 1;
+					}
+				}
+			}
+			else if (g_rfidReadMode == 1)
 			{
 				g_SP->WriteData(ARDUINO_POLL_TAG, 1);
 				Sleep(50);
@@ -356,18 +373,13 @@ DWORD WINAPI CheckRfidThread(LPVOID lParam)
 				if (bytesRead > 0)
 				{
 					buffer[bytesRead] = 0;
-					if (strcmp(buffer, "inactive") == 0)
-					{
-						tmpHwnd = GetDlgItem(g_parentHwnd, IDC_STATUS_TEXT);
-						SendMessage(tmpHwnd, WM_SETTEXT, (WPARAM)0, (LPARAM)L"Status: Inactive");
-					}
-					else if (strcmp(buffer, "connected") == 0)
+					if (strcmp(buffer, CARD_PRESENT) == 0)
 					{
 						tmpHwnd = GetDlgItem(g_parentHwnd, IDC_STATUS_TEXT);
 						SendMessage(tmpHwnd, WM_SETTEXT, (WPARAM)0, (LPARAM)L"Status: Active");
 					}
 					// Check to see if we've disconnected
-					else if (strcmp(buffer, "disconnected") == 0)
+					else if (strcmp(buffer, CARD_NOT_PRESENT) == 0)
 					{
 						// Lock the machine!!
 						PROCESS_INFORMATION pi = { 0 };
@@ -378,7 +390,7 @@ DWORD WINAPI CheckRfidThread(LPVOID lParam)
 					}
 				}
 			}
-			else if (g_rfidReadMode == 1)
+			else if (g_rfidReadMode == 2)
 			{
 				g_SP->WriteData(ARDUINO_READ_TAG, 1);
 				Sleep(50);
@@ -386,14 +398,16 @@ DWORD WINAPI CheckRfidThread(LPVOID lParam)
 				if (bytesRead > 0)
 				{
 					buffer[bytesRead] = 0;
-
-					// Got a UUID!
-					ReadNewTag(buffer);
-					tmpHwnd = GetDlgItem(g_parentHwnd, IDC_READ_ID);
-					mbstowcs(buffer_t, buffer, 1024);
-					SendMessage(tmpHwnd, WM_SETTEXT, (WPARAM)0, (LPARAM)buffer_t);
-					g_rfidReadMode = 0;
-					EndDialog(g_readRfidHwnd, 0);
+					if (strlen(buffer) > 1)
+					{
+						// Got a UUID!
+						ReadNewTag(buffer);
+						tmpHwnd = GetDlgItem(g_parentHwnd, IDC_READ_ID);
+						mbstowcs(buffer_t, buffer, 1024);
+						SendMessage(tmpHwnd, WM_SETTEXT, (WPARAM)0, (LPARAM)buffer_t);
+						g_rfidReadMode = 0;
+						EndDialog(g_readRfidHwnd, 0);
+					}
 				}
 			}
 		}

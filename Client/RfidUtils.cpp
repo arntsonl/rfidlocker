@@ -67,6 +67,11 @@ void SaveRfidSettings()
 	g_ini.SaveFile(path);
 }
 
+char * GetTag()
+{
+	return g_rfidOptions.readTag;
+}
+
 void ReadNewTag(char * buffer)
 {
 	strncpy(g_rfidOptions.readTag, buffer, 2048);
