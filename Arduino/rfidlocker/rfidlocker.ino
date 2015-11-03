@@ -13,8 +13,8 @@ PN532 nfc(PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
 #define ARDUINO_SET_TAG '2'
 
 char command;
-int lockerUid;
-int readUid;
+uint32_t lockerUid;
+uint32_t readUid;
 bool tagSetDown;
 
 bool isTagPresent()
@@ -64,26 +64,17 @@ void loop() {
     {
       if ( isTagPresent() == true )
       {
-        Serial.write("1");
+        Serial.print(1);
       }
       else
       {
-        Serial.write("0");
+        Serial.print(0);
       }
     }
     else if ( command == ARDUINO_READ_TAG )
     {
       readCard();
-      if ( readUid )
-      {
-        char tmpBuf[32];
-        sprintf(tmpBuf, "%i", readUid);
-        Serial.write(tmpBuf);
-      }
-      else
-      {
-        Serial.write("-");
-      }
+      Serial.print(readUid);
     }
     else if ( command == ARDUINO_SET_TAG )
     {
@@ -91,10 +82,10 @@ void loop() {
       if ( buf.length() > 0 )
       {
         lockerUid = buf.toInt();
-        Serial.write("1");
+        Serial.print(1);
       } else
       {
-        Serial.write("0");
+        Serial.print(0);
       }
     }
   }
